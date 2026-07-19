@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FBF7F0">
+<title>Nowstep — ADHD Routine Timer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FBF7F0;--card:#FFFFFF;--line:#EAE2D4;--ink:#211D16;--mut:#8A8172;--dim:#B8AE9C;--acc:#E85D3D;--ok:#4F8A5B}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--ink);font-family:'Space Grotesk',system-ui,sans-serif;min-height:100vh;min-height:100dvh}
+.wrap{max-width:440px;margin:0 auto;padding:24px 20px 44px}
+.mono{font-family:'Space Mono',monospace;font-variant-numeric:tabular-nums}
+.eyebrow{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+h1{font-size:30px;font-weight:700;letter-spacing:-.025em;line-height:1.02}
+h1 span{color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 2px 6px -4px rgba(33,29,22,.12)}
+.btn{display:block;width:100%;padding:15px;border:none;border-radius:11px;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer}
+.btn:active{transform:scale(.98)}
+.btn-acc{background:var(--acc);color:#fff}
+.btn-ghost{background:transparent;border:1.5px solid var(--line);color:var(--mut)}
+input{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:11px 12px;color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:14px;outline:none}
+input:focus{border-color:var(--acc)}
+.routine{display:flex;align-items:center;justify-content:space-between;padding:15px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.routine:last-child{border:none}
+.step{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border:none}
+.step input.nm{flex:1}
+.step input.mn{width:64px;text-align:center}
+.step .x{background:none;border:none;color:var(--dim);font-size:17px;cursor:pointer;padding:4px}
+.runner{position:fixed;inset:0;background:var(--acc);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;color:#fff}
+.runner.last{background:var(--ok)}
+.bigstep{font-size:42px;font-weight:700;letter-spacing:-.03em;line-height:1.02;margin:18px 0}
+.bigtimer{font-family:'Space Mono',monospace;font-variant-numeric:tabular-nums;font-size:60px;font-weight:700;line-height:1}
+.donebtn{margin-top:34px;padding:18px 44px;background:#fff;color:var(--ink);border:none;border-radius:14px;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;cursor:pointer}
+.donebtn:active{transform:scale(.97)}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 20px;border-radius:10px;font-family:'Space Mono',monospace;font-size:12px;z-index:300}
+.hidden{display:none!important}
+label{display:block;font-size:12px;color:var(--mut);margin:14px 0 6px;font-weight:500}
+.gopro{background:none;border:1px solid var(--acc);color:var(--acc);font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.08em;padding:5px 10px;border-radius:20px;cursor:pointer}
+.voicehint{margin-top:16px;background:rgba(255,255,255,.16);border:none;color:#fff;font-family:'Space Mono',monospace;font-size:11px;padding:8px 14px;border-radius:20px;cursor:pointer}
+</style>
+<link rel="manifest" href="manifest.json">
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js")</script>
+</head>
+<body>
+<div class="wrap">
+
+<div style="display:flex;justify-content:space-between;align-items:center">
+  <div class="eyebrow">NOWSTEP</div>
+  <button class="gopro hidden" id="goPro" onclick="Billing.openPaywall('header')">GO PRO</button>
+</div>
+<h1 style="margin:8px 0 6px">Your routine.<br><span>One step at a time.</span></h1>
+<p style="color:var(--mut);font-size:14px;line-height:1.55;margin-bottom:16px">Lists paralyze ADHD brains. Nowstep shows you ONE step, full screen, with a timer. Tap done, next step appears. That's it.</p>
+
+<div id="list">
+  <div class="card" id="routinecard">
+    <div class="eyebrow" style="color:var(--dim);margin-bottom:2px">YOUR ROUTINES — TAP TO RUN</div>
+    <div id="routines"></div>
+    <div id="noroutines" style="color:var(--mut);font-size:13.5px;padding:12px 0">No routines yet. Build your first — morning launch, shutdown ritual, gym warm-up, anything you keep stalling on.</div>
+  </div>
+  <div style="height:10px"></div>
+  <button class="btn btn-ghost" onclick="showBuilder()">+ Build a routine</button>
+</div>
+
+<div id="builder" class="hidden">
+  <div class="card">
+    <div class="eyebrow" style="color:var(--dim)">NEW ROUTINE</div>
+    <label>Name</label>
+    <input id="r-name" placeholder="Morning launch" style="width:100%">
+    <label>Steps (name + minutes)</label>
+    <div id="steps"></div>
+    <div style="height:8px"></div>
+    <button class="btn btn-ghost" onclick="addStep('',5)">+ Add step</button>
+    <div style="height:10px"></div>
+    <button class="btn btn-acc" onclick="saveRoutine()">Save routine</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-ghost" onclick="hideBuilder()">Cancel</button>
+  </div>
+</div>
+
+<div id="runner" class="runner hidden">
+  <div class="eyebrow" style="color:rgba(255,255,255,.7)" id="run-prog">STEP 1 / 5</div>
+  <div class="bigstep" id="run-step">Drink water</div>
+  <div class="bigtimer" id="run-timer">5:00</div>
+  <button class="donebtn" onclick="nextStep()">DONE →</button>
+  <button class="voicehint hidden" id="voicehint" onclick="Billing.openPaywall('voice')">Silent mode — tap to unlock voice cues</button>
+  <button onclick="quitRun()" style="margin-top:16px;background:none;border:none;color:rgba(255,255,255,.6);font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;letter-spacing:.1em">QUIT RUN</button>
+</div>
+
+<div id="complete" class="runner last hidden">
+  <div class="eyebrow" style="color:rgba(255,255,255,.7)">ROUTINE COMPLETE</div>
+  <div class="bigstep">You're launched.</div>
+  <div class="mono" style="font-size:14px;color:rgba(255,255,255,.85)" id="c-stats"></div>
+  <button class="donebtn" onclick="backToList()">Done</button>
+</div>
+
+</div>
+<script>
+const store={m:{},get(k,d){try{const v=localStorage.getItem('ns_'+k);return v!==null?JSON.parse(v):d}catch(e){return k in this.m?this.m[k]:d}},set(k,v){try{localStorage.setItem('ns_'+k,JSON.stringify(v))}catch(e){this.m[k]=v}}};
+let routines=store.get('routines',[]),runs=store.get('runs',0);
+let run=null,timer=null,remain=0;
+const FREE_LIMIT=2;
+function isPro(){return window.Billing?Billing.isPro():false}
+function speak(t){if(!isPro())return;try{if('speechSynthesis'in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=1;u.pitch=1;speechSynthesis.speak(u)}}catch(e){}}
+function alarm(){if(!isPro())return;try{if(navigator.vibrate)navigator.vibrate([220,110,220]);const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(.0001,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.35,ctx.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.7);o.start();o.stop(ctx.currentTime+.72)}catch(e){}}
+function render(){
+  document.getElementById('noroutines').classList.toggle('hidden',routines.length>0);
+  document.getElementById('routines').innerHTML=routines.map((r,i)=>{const mins=r.steps.reduce((a,s)=>a+s.min,0);
+    return `<div class="routine" onclick="startRun(${i})"><div><b style="font-size:16px">${esc(r.name)}</b><div class="mono" style="font-size:11px;color:var(--dim)">${r.steps.length} steps · ${mins} min</div></div><div style="display:flex;gap:12px;align-items:center"><button onclick="event.stopPropagation();shareRoutine(${i})" title="Share routine" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:15px">↗</button><button onclick="event.stopPropagation();delRoutine(${i})" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px">×</button><span style="color:var(--acc);font-size:22px">▶</span></div></div>`}).join('');
+  document.getElementById('goPro').classList.toggle('hidden',isPro());
+}
+function showBuilder(){
+  if(routines.length>=FREE_LIMIT && !isPro()){Billing.openPaywall('routine-limit');return}
+  document.getElementById('list').classList.add('hidden');document.getElementById('builder').classList.remove('hidden');
+  document.getElementById('steps').innerHTML='';['Drink a glass of water','Get dressed','5-min tidy'].forEach((s,i)=>addStep(s,[2,5,5][i]));
+}
+function hideBuilder(){document.getElementById('builder').classList.add('hidden');document.getElementById('list').classList.remove('hidden')}
+function addStep(name,min){const w=document.getElementById('steps');const d=document.createElement('div');d.className='step';
+  d.innerHTML=`<input class="nm" value="${name.replace(/"/g,'&quot;')}" placeholder="Step..."><input class="mn" type="number" inputmode="numeric" value="${min}" min="1"><button class="x" onclick="this.parentElement.remove()">×</button>`;w.appendChild(d)}
+function saveRoutine(){
+  const name=document.getElementById('r-name').value.trim();
+  const steps=[...document.querySelectorAll('#steps .step')].map(s=>({name:s.querySelector('.nm').value.trim(),min:Math.max(1,parseInt(s.querySelector('.mn').value)||5)})).filter(s=>s.name);
+  if(!name||!steps.length){toast('NEED NAME + STEPS');return}
+  routines.push({name,steps});store.set('routines',routines);document.getElementById('r-name').value='';hideBuilder();render();toast('ROUTINE SAVED');
+}
+function delRoutine(i){if(!confirm('Delete "'+routines[i].name+'"?'))return;routines.splice(i,1);store.set('routines',routines);render()}
+function startRun(i){run={routine:routines[i],idx:0,started:Date.now()};document.getElementById('list').classList.add('hidden');document.getElementById('runner').classList.remove('hidden');document.getElementById('voicehint').classList.toggle('hidden',isPro());showStep()}
+function showStep(){
+  const s=run.routine.steps[run.idx];
+  document.getElementById('run-prog').textContent='STEP '+(run.idx+1)+' / '+run.routine.steps.length;
+  document.getElementById('run-step').textContent=s.name;
+  speak('Now: '+s.name+'. '+s.min+' minute'+(s.min>1?'s':''));
+  remain=s.min*60;updTimer();clearInterval(timer);
+  timer=setInterval(()=>{remain--;updTimer();if(remain<=0){clearInterval(timer);document.getElementById('run-timer').textContent='TIME — tap done';alarm();speak('Time is up. Tap done.')}},1000);
+}
+function updTimer(){if(remain>=0)document.getElementById('run-timer').textContent=Math.floor(remain/60)+':'+String(remain%60).padStart(2,'0')}
+function nextStep(){
+  clearInterval(timer);run.idx++;
+  if(run.idx>=run.routine.steps.length){runs++;store.set('runs',runs);speak('Routine complete. You are launched.');
+    document.getElementById('runner').classList.add('hidden');
+    document.getElementById('c-stats').textContent=run.routine.name.toUpperCase()+' · '+Math.round((Date.now()-run.started)/60000)+' MIN · RUN #'+runs;
+    document.getElementById('complete').classList.remove('hidden');
+  } else showStep();
+}
+function quitRun(){clearInterval(timer);try{speechSynthesis.cancel()}catch(e){}run=null;document.getElementById('runner').classList.add('hidden');document.getElementById('list').classList.remove('hidden')}
+function backToList(){document.getElementById('complete').classList.add('hidden');document.getElementById('list').classList.remove('hidden');render()}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2000)}
+// ---- Shareable routine packs (network effect: share a routine → friend imports → installs) ----
+const STORE='https://play.google.com/store/apps/details?id=com.tigerbrandsglobal.rails';
+function shareRoutine(i){const r=routines[i];
+  const data=btoa(unescape(encodeURIComponent(JSON.stringify({n:r.name,s:r.steps}))));
+  const url=location.origin+location.pathname+'#pack='+data;
+  const txt='"'+r.name+'" — a Nowstep routine. Open on Android to run it hands-free.';
+  if(navigator.share){navigator.share({title:'Nowstep routine',text:txt,url}).catch(()=>{})}
+  else{navigator.clipboard.writeText(url).then(()=>toast('SHARE LINK COPIED')).catch(()=>toast(url))}}
+function checkPack(){
+  if(!location.hash.startsWith('#pack='))return;
+  try{const d=JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(6)))));
+    if(d&&d.n&&Array.isArray(d.s)){
+      if(confirm('Import the routine "'+d.n+'" ('+d.s.length+' steps)?')){
+        if(routines.length>=FREE_LIMIT&&!isPro()){Billing.openPaywall('import')}
+        else{routines.push({name:d.n,steps:d.s.map(s=>({name:String(s.name||'').slice(0,80),min:Math.max(1,parseInt(s.min)||5)}))});store.set('routines',routines);render();toast('ROUTINE IMPORTED')}
+      }
+    }}catch(e){}
+  try{history.replaceState(null,'',location.pathname)}catch(e){}
+}
+document.addEventListener('nowstep-pro-changed',()=>render());
+render();checkPack();
+</script>
+<script src="billing.js"></script>
+</body>
+</html>
